@@ -47,7 +47,7 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        docker stop app-container || true
+                        docker rm app-container || true
                         docker run -p 8082:80 -d --name app-container app 
                     '''
                 }
