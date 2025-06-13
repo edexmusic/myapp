@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+    docker {
+        image 'docker:25.0-cli'
+        args '-v /var/run/docker.sock:/var/run/docker.sock'
+    }
+}
 
     environment {
         REGISTRY_CREDENTIALS = 'docker-hub-creds'
