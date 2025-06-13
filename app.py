@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello():
-    return "Hello from Flask inside )))))! 🚀"
+    return "Hello from Flask inside ))34142313)))! 🚀"
 
 if __name__ == "__main__":
     # 0.0.0.0 потрібен, щоб Flask слухав на всіх інтерфейсах
