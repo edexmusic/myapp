@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:25.0.2-cli'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
@@ -18,16 +13,16 @@ pipeline {
             }
         }
 
-        stage('Install Compose & Build') {
+        stage('Build containers') {
             steps {
                 sh '''
-                    docker compose version || apk add --no-cache docker-cli docker-compose
+                    docker compose version || docker --version || apt-get update && apt-get install -y docker-compose
                     docker compose build
                 '''
             }
         }
 
-        stage('Test (optional)') {
+        stage('Run tests') {
             when {
                 expression { fileExists('tests') }
             }
@@ -54,7 +49,13 @@ pipeline {
             echo "❌ Щось пішло не так — перевір логи Jenkins stage‑ів та docker compose."
         }
         cleanup {
-            sh 'docker image prune -af || true'
+            script {
+                try {
+                    sh 'docker image prune -af || true'
+                } catch (e) {
+                    echo "⚠ Не вдалося очистити образи: ${e.message}"
+                }
+            }
         }
     }
 }
