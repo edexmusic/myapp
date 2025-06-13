@@ -1,17 +1,12 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:25.0-dind'
-            args '-v /var/run/docker.sock:/var/run/docker.sock --privileged'
-        }
-    }
+    agent any
 
     environment {
         REGISTRY_CREDENTIALS = 'docker-hub-creds'
         IMAGE_NAME           = 'yourusername/myapp'
         IMAGE_TAG            = "${env.BUILD_NUMBER}"
         COMPOSE_FILE         = 'docker-compose.yml'
-        APP_PORT             = '8082'
+        APP_PORT             = '8081'
     }
 
     stages {
@@ -21,18 +16,20 @@ pipeline {
             }
         }
 
-        stage('Build Docker image') {
+        stage('Build and Test in Docker') {
             steps {
-                sh 'docker compose build'
-            }
-        }
-
-        stage('Run tests (optional)') {
-            when {
-                expression { fileExists('tests') }
-            }
-            steps {
-                sh 'docker compose run --rm web pytest || true'
+                script {
+                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
+                        sh '''
+                            apk add --no-cache docker-cli-compose
+                            docker compose build
+                            
+                            if [ -d tests ]; then
+                                docker compose run --rm web pytest || true
+                            fi
+                        '''
+                    }
+                }
             }
         }
 
@@ -41,26 +38,35 @@ pipeline {
                 expression { return env.REGISTRY_CREDENTIALS?.trim() }
             }
             steps {
-                withCredentials([usernamePassword(
-                        credentialsId: env.REGISTRY_CREDENTIALS,
-                        usernameVariable: 'REG_USER',
-                        passwordVariable: 'REG_PASS')]) {
-                    sh '''
-                        docker tag myapp_web:latest $IMAGE_NAME:$IMAGE_TAG
-                        echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
-                        docker push $IMAGE_NAME:$IMAGE_TAG
-                        docker logout
-                    '''
+                script {
+                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
+                        withCredentials([usernamePassword(
+                            credentialsId: env.REGISTRY_CREDENTIALS,
+                            usernameVariable: 'REG_USER',
+                            passwordVariable: 'REG_PASS'
+                        )]) {
+                            sh '''
+                                docker tag myapp_web:latest $IMAGE_NAME:$IMAGE_TAG
+                                echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
+                                docker push $IMAGE_NAME:$IMAGE_TAG
+                                docker logout
+                            '''
+                        }
+                    }
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh '''
-                    docker compose down || true
-                    docker compose --project-name myapp -p myapp up -d --remove-orphans
-                '''
+                script {
+                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
+                        sh '''
+                            docker compose down || true
+                            docker compose up -d --remove-orphans
+                        '''
+                    }
+                }
             }
         }
     }
@@ -73,7 +79,11 @@ pipeline {
             echo "❌ Щось пішло не так — перевір логи Jenkins stage‑ів та docker compose."
         }
         cleanup {
-            sh 'docker image prune -af || true'
+            script {
+                docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
+                    sh 'docker image prune -af || true'
+                }
+            }
         }
     }
 }
