@@ -12,13 +12,9 @@ pipeline {
     stages {
         stage('Checkout source') {
             steps {
-                script {
-                    // Очищаємо попередній каталог, якщо є
-                    sh "rm -rf ${env.APP_DIR}"
-                    // Клонуємо репозиторій
-                    sh "git clone --branch ${env.BRANCH} ${env.REPO_URL} ${env.APP_DIR}"
-                }
-            }
+        sh "rm -rf myapp"
+        sh "git clone --branch main https://github.com/edexmusic/myapp.git myapp"
+    }
         }
 
         stage('Check Compose file') {
