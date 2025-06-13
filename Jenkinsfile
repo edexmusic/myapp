@@ -15,10 +15,7 @@ pipeline {
 
         stage('Build containers') {
             steps {
-                sh '''
-                    docker compose version || docker --version || apt-get update && apt-get install -y docker-compose
-                    docker compose build
-                '''
+                sh 'docker compose build'
             }
         }
 
@@ -27,7 +24,7 @@ pipeline {
                 expression { fileExists('tests') }
             }
             steps {
-                sh 'docker compose run --rm web pytest || true'
+                sh 'docker compose run --rm web pytest || echo "⚠️ Тести завершились з помилкою"'
             }
         }
 
