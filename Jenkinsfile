@@ -7,15 +7,15 @@ pipeline {
     }
 
     stages {
-        stage('Check Compose file') {
-            steps {
-                script {
-                    if (!fileExists(env.COMPOSE_FILE)) {
-                        error "❌ Не знайдено файл ${env.COMPOSE_FILE}"
-                    }
-                }
-            }
-        }
+        // stage('Check Compose file') {
+        //     steps {
+        //         script {
+        //             if (!fileExists(env.COMPOSE_FILE)) {
+        //                 error "❌ Не знайдено файл ${env.COMPOSE_FILE}"
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Build containers') {
             steps {
@@ -24,31 +24,31 @@ pipeline {
                     if (result != 0) {
                         error("❌ Jenkins не має доступу до Docker. Додай користувача до групи docker.")
                     }
-                    sh 'docker compose build'
+                    sh 'docker build -t app'
                 }
             }
         }
 
-        stage('Run tests') {
-            when {
-                expression { fileExists('tests') }
-            }
-            steps {
-                script {
-                    def testStatus = sh(script: 'docker compose run --rm web pytest', returnStatus: true)
-                    if (testStatus != 0) {
-                        echo "⚠️ Тести завершились з помилкою, але пайплайн продовжується."
-                    }
-                }
-            }
-        }
+        // stage('Run tests') {
+        //     when {
+        //         expression { fileExists('tests') }
+        //     }
+        //     steps {
+        //         script {
+        //             def testStatus = sh(script: 'docker-compose run --rm web pytest', returnStatus: true)
+        //             if (testStatus != 0) {
+        //                 echo "⚠️ Тести завершились з помилкою, але пайплайн продовжується."
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Deploy') {
             steps {
                 script {
                     sh '''
-                        docker compose down || true
-                        docker compose up -d --remove-orphans
+                        docker stop app-container || true
+                        docker run -p 8082:80 -d --name app-container app 
                     '''
                 }
             }
