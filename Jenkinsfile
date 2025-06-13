@@ -2,6 +2,9 @@ pipeline {
     agent any
 
     environment {
+        REPO_URL     = 'https://github.com/edexmusic/myapp.git'
+        BRANCH       = 'main'
+        APP_DIR      = 'myapp'
         COMPOSE_FILE = 'docker-compose.yml'
         APP_PORT     = '8081'
     }
@@ -9,16 +12,20 @@ pipeline {
     stages {
         stage('Checkout source') {
             steps {
-                // Використовуй тільки якщо job створено як "Pipeline script from SCM"
-                checkout scm
+                script {
+                    // Очищаємо попередній каталог, якщо є
+                    sh "rm -rf ${env.APP_DIR}"
+                    // Клонуємо репозиторій
+                    sh "git clone --branch ${env.BRANCH} ${env.REPO_URL} ${env.APP_DIR}"
+                }
             }
         }
 
         stage('Check Compose file') {
             steps {
                 script {
-                    if (!fileExists(env.COMPOSE_FILE)) {
-                        error "❌ Не знайдено файл ${env.COMPOSE_FILE}"
+                    if (!fileExists("${env.APP_DIR}/${env.COMPOSE_FILE}")) {
+                        error "❌ Не знайдено файл ${env.COMPOSE_FILE} у ${env.APP_DIR}"
                     }
                 }
             }
@@ -31,18 +38,18 @@ pipeline {
                     if (result != 0) {
                         error("❌ Jenkins не має доступу до Docker. Додай користувача до групи docker.")
                     }
-                    sh 'docker compose build'
+                    sh "cd ${env.APP_DIR} && docker compose build"
                 }
             }
         }
 
         stage('Run tests') {
             when {
-                expression { fileExists('tests') }
+                expression { fileExists("${env.APP_DIR}/tests") }
             }
             steps {
                 script {
-                    def testStatus = sh(script: 'docker compose run --rm web pytest', returnStatus: true)
+                    def testStatus = sh(script: "cd ${env.APP_DIR} && docker compose run --rm web pytest", returnStatus: true)
                     if (testStatus != 0) {
                         echo "⚠️ Тести завершились з помилкою, але пайплайн продовжується."
                     }
@@ -53,10 +60,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    sh '''
+                    sh """
+                        cd ${env.APP_DIR}
                         docker compose down || true
                         docker compose up -d --remove-orphans
-                    '''
+                    """
                 }
             }
         }
