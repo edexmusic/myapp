@@ -11,7 +11,7 @@ pipeline {
         IMAGE_NAME           = 'yourusername/myapp'
         IMAGE_TAG            = "${env.BUILD_NUMBER}"
         COMPOSE_FILE         = 'docker-compose.yml'
-        APP_PORT             = '8080'
+        APP_PORT             = '8081'
     }
 
     stages {
