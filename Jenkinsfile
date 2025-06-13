@@ -12,9 +12,9 @@ pipeline {
     stages {
         stage('Checkout source') {
             steps {
-        sh "rm -rf myapp"
-        sh "git clone --branch main https://github.com/edexmusic/myapp.git myapp"
-    }
+                sh "rm -rf ${env.APP_DIR}"
+                sh "git clone --depth=1 --branch=${env.BRANCH} ${env.REPO_URL} ${env.APP_DIR}"
+            }
         }
 
         stage('Check Compose file') {
@@ -45,7 +45,10 @@ pipeline {
             }
             steps {
                 script {
-                    def testStatus = sh(script: "cd ${env.APP_DIR} && docker compose run --rm web pytest", returnStatus: true)
+                    def testStatus = sh(
+                        script: "cd ${env.APP_DIR} && docker compose run --rm web pytest",
+                        returnStatus: true
+                    )
                     if (testStatus != 0) {
                         echo "⚠️ Тести завершились з помилкою, але пайплайн продовжується."
                     }
@@ -55,13 +58,8 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                script {
-                    sh """
-                        cd ${env.APP_DIR}
-                        docker compose down || true
-                        docker compose up -d --remove-orphans
-                    """
-                }
+                sh "cd ${env.APP_DIR} && docker compose down || true"
+                sh "cd ${env.APP_DIR} && docker compose up -d --remove-orphans"
             }
         }
     }
