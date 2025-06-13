@@ -18,18 +18,12 @@ pipeline {
 
         stage('Build and Test in Docker') {
             steps {
-                script {
-                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
-                        sh '''
-                            apk add --no-cache docker-cli-compose
-                            docker compose build
-                            
-                            if [ -d tests ]; then
-                                docker compose run --rm web pytest || true
-                            fi
-                        '''
-                    }
-                }
+                sh '''
+                    docker compose build
+                    if [ -d tests ]; then
+                        docker compose run --rm web pytest || true
+                    fi
+                '''
             }
         }
 
@@ -38,35 +32,27 @@ pipeline {
                 expression { return env.REGISTRY_CREDENTIALS?.trim() }
             }
             steps {
-                script {
-                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
-                        withCredentials([usernamePassword(
-                            credentialsId: env.REGISTRY_CREDENTIALS,
-                            usernameVariable: 'REG_USER',
-                            passwordVariable: 'REG_PASS'
-                        )]) {
-                            sh '''
-                                docker tag myapp_web:latest $IMAGE_NAME:$IMAGE_TAG
-                                echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
-                                docker push $IMAGE_NAME:$IMAGE_TAG
-                                docker logout
-                            '''
-                        }
-                    }
+                withCredentials([usernamePassword(
+                    credentialsId: env.REGISTRY_CREDENTIALS,
+                    usernameVariable: 'REG_USER',
+                    passwordVariable: 'REG_PASS'
+                )]) {
+                    sh '''
+                        docker tag myapp_web:latest $IMAGE_NAME:$IMAGE_TAG
+                        echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
+                        docker push $IMAGE_NAME:$IMAGE_TAG
+                        docker logout
+                    '''
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                script {
-                    docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
-                        sh '''
-                            docker compose down || true
-                            docker compose up -d --remove-orphans
-                        '''
-                    }
-                }
+                sh '''
+                    docker compose down || true
+                    docker compose up -d --remove-orphans
+                '''
             }
         }
     }
@@ -79,11 +65,7 @@ pipeline {
             echo "❌ Щось пішло не так — перевір логи Jenkins stage‑ів та docker compose."
         }
         cleanup {
-            script {
-                docker.image('docker:25.0-cli').inside('-v /var/run/docker.sock:/var/run/docker.sock') {
-                    sh 'docker image prune -af || true'
-                }
-            }
+            sh 'docker image prune -af || true'
         }
     }
 }
