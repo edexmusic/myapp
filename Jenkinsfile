@@ -24,7 +24,7 @@ pipeline {
                     if (result != 0) {
                         error("❌ Jenkins не має доступу до Docker. Додай користувача до групи docker.")
                     }
-                    sh 'docker build -t app'
+                    sh 'docker build -t app .'
                 }
             }
         }
