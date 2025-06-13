@@ -15,7 +15,14 @@ pipeline {
 
         stage('Build containers') {
             steps {
-                sh 'docker compose build'
+                script {
+                    // Перевіряємо доступ до Docker
+                    def result = sh(script: 'docker ps', returnStatus: true)
+                    if (result != 0) {
+                        error("❌ Jenkins не має доступу до Docker. Перевір, чи додано користувача до групи docker.")
+                    }
+                    sh 'docker-compose build'
+                }
             }
         }
 
@@ -24,16 +31,23 @@ pipeline {
                 expression { fileExists('tests') }
             }
             steps {
-                sh 'docker compose run --rm web pytest || echo "⚠️ Тести завершились з помилкою"'
+                script {
+                    def testStatus = sh(script: 'docker-compose run --rm web pytest', returnStatus: true)
+                    if (testStatus != 0) {
+                        echo "⚠️ Тести завершились з помилкою, але пайплайн продовжується."
+                    }
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh '''
-                    docker compose down || true
-                    docker compose up -d --remove-orphans
-                '''
+                script {
+                    sh '''
+                        docker-compose down || true
+                        docker-compose up -d --remove-orphans
+                    '''
+                }
             }
         }
     }
@@ -43,14 +57,14 @@ pipeline {
             echo "✅ Деплой успішний: додаток доступний на http://<host>:${env.APP_PORT}"
         }
         failure {
-            echo "❌ Щось пішло не так — перевір логи Jenkins stage‑ів та docker compose."
+            echo "❌ Щось пішло не так — перевір логи Jenkins stage‑ів та docker-compose."
         }
         cleanup {
             script {
                 try {
                     sh 'docker image prune -af || true'
                 } catch (e) {
-                    echo "⚠ Не вдалося очистити образи: ${e.message}"
+                    echo "⚠️ Не вдалося очистити образи: ${e.message}"
                 }
             }
         }
