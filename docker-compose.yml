@@ -2,14 +2,28 @@ version: "3.8"
 
 services:
   web:
-    build: .          # збираємо образ із поточної папки
+    build: .
     ports:
-      - "8081:80"     # <зовнішній>:<внутрішній>
+      - "8081:80"
     restart: unless-stopped
+    container_name: myapp_web
 
-jenkins:
-  image: jenkins/jenkins:lts
-  volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-    - jenkins_home:/var/jenkins_home
-  user: root
+  jenkins:
+    image: jenkins/jenkins:lts
+    user: root
+    ports:
+      - "8084:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jenkins_home:/var/jenkins_home
+    environment:
+      DOCKER_CONFIG: /root/.docker
+    entrypoint: >
+      sh -c "
+        apt-get update &&
+        apt-get install -y docker.io docker-compose &&
+        /usr/local/bin/jenkins.sh
+      "
+
+volumes:
+  jenkins_home:

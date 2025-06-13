@@ -1,12 +1,14 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:25.0.2-cli'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
-        REGISTRY_CREDENTIALS = 'docker-hub-creds'
-        IMAGE_NAME           = 'yourusername/myapp'
-        IMAGE_TAG            = "${env.BUILD_NUMBER}"
-        COMPOSE_FILE         = 'docker-compose.yml'
-        APP_PORT             = '8081'
+        COMPOSE_FILE = 'docker-compose.yml'
+        APP_PORT     = '8081'
     }
 
     stages {
@@ -16,34 +18,21 @@ pipeline {
             }
         }
 
-        stage('Build and Test in Docker') {
+        stage('Install Compose & Build') {
             steps {
                 sh '''
+                    docker compose version || apk add --no-cache docker-cli docker-compose
                     docker compose build
-                    if [ -d tests ]; then
-                        docker compose run --rm web pytest || true
-                    fi
                 '''
             }
         }
 
-        stage('Push image to registry') {
+        stage('Test (optional)') {
             when {
-                expression { return env.REGISTRY_CREDENTIALS?.trim() }
+                expression { fileExists('tests') }
             }
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: env.REGISTRY_CREDENTIALS,
-                    usernameVariable: 'REG_USER',
-                    passwordVariable: 'REG_PASS'
-                )]) {
-                    sh '''
-                        docker tag myapp_web:latest $IMAGE_NAME:$IMAGE_TAG
-                        echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin
-                        docker push $IMAGE_NAME:$IMAGE_TAG
-                        docker logout
-                    '''
-                }
+                sh 'docker compose run --rm web pytest || true'
             }
         }
 
