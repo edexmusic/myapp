@@ -6,3 +6,10 @@ services:
     ports:
       - "8081:80"     # <зовнішній>:<внутрішній>
     restart: unless-stopped
+
+jenkins:
+  image: jenkins/jenkins:lts
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - jenkins_home:/var/jenkins_home
+  user: root
