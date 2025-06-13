@@ -1,0 +1,8 @@
+version: "3.8"
+
+services:
+  web:
+    build: .          # збираємо образ із поточної папки
+    ports:
+      - "8081:80"     # <зовнішній>:<внутрішній>
+    restart: unless-stopped
