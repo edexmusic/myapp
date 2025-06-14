@@ -36,8 +36,7 @@ pipeline {
             echo "Deployment successful: application available at http://<host>:${env.APP_PORT}"
         }
         failure {
-            echo "Something went wrong - check Jenkins stage and docker compose logs
-."
+            echo "Something went wrong - check Jenkins stage and docker compose logs."
         }
         cleanup {
             script {
